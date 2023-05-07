@@ -135,10 +135,13 @@ class CveModel:
 
 
 def setCvssValues(vector: str, model: CveModel):
-    c = CVSS3(vector)
-    model.cvss3_vector = vector
-    model.cvss3_score = str(c.base_score)
-    model.severity_score = c.severities()[0]
+    try:
+        c = CVSS3(vector)
+        model.cvss3_vector = vector
+        model.cvss3_score = str(c.base_score)
+        model.severity_score = c.severities()[0]
+    except Exception as e:
+        print("Hata oluştu:", e)
 # Versiyon bilgisini istenilen standartlara çevirir
 
 
@@ -163,6 +166,8 @@ def checkVersion(verInfo: str, isFix: bool):
                         return ver + ' (excluding)'
                     else:
                         return ver + '(including) - '
+        else:
+            return ver
     if ',' in ver:  # Çoklu versiyon verilmesi durumunda en küçük versiyon tespit edilir
         versionList = ver.split(",")
         oldestVer = '1000.0.0.0'
@@ -222,7 +227,7 @@ def getDictionaries(days: int,):
     # Son kontrolden itibaren yeni gelen bültenlerin kontrol edilecegi siteye istek atılır
     browser.get(advisory_url)
     sleep(10)
-    soup = bs(browser.page_source, "html5lib")
+    soup = bs(browser.page_source, "html.parser")
     html_table = soup.find("tbody")  # Bultenlerin bulundugu tabloya erişlir
     rows = html_table.find_all("tr")  # Tablodan satirlar cekilir
     columns = []
@@ -234,8 +239,8 @@ def getDictionaries(days: int,):
         parsed_date = exploit_date.split("-")
         # Son kontrol tarihi kiyas edilebilmesi icin parse edilir
         parsed_latest_control = str(last_control_date).split("-")
-        exploit_date = datetime.date(int(parsed_date[0]), int(
-            parsed_date[1]), int(parsed_date[2]))  # "-" ile ayrılan tarihi datetime objesine çeviriyoruz
+        exploit_date = datetime.date(int(parsed_date[2]), int(
+            parsed_date[1]), int(parsed_date[0]))  # "-" ile ayrılan tarihi datetime objesine çeviriyoruz
 
         if exploit_date > last_control_date:  # Eger yeni bir bulten geldiyse kontrol listesine eklenir
             exploit = exploit.strip(" ")
@@ -374,7 +379,7 @@ def getDictionaries(days: int,):
                 "fixURL": cve.fix_url,
                 "references": [],
                 "severityScore": cve.severity_score,
-                "cvss3Score": float(cve.cvss3_score),
+                "cvss3Score": cve.cvss3_score,
                 "cvss3Vector": cve.cvss3_vector
             }
             dict_list.append(vmwareDict)
@@ -382,9 +387,12 @@ def getDictionaries(days: int,):
         exploit_dict_list.append(dict_list)
 
     browser.quit()
-    return exploit_dict_list
-    # return json.dumps(exploit_dict_list)
+    # return exploit_dict_list
+    json_data = json.dumps(exploit_dict_list)
+    with open("data.json", "w") as f:
+        f.write(json_data)
+    return json_data
     print('IM DONE')
 
 
-print(getDictionaries(days=68))
+print(getDictionaries(days=20))
